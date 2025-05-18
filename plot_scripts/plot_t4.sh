@@ -1,16 +1,9 @@
-bash ./exploit/B1/run_hammer_manual_B1.sh
-bash ./exploit/B2/run_hammer_manual_B2.sh
-bash ./exploit/D1/run_hammer_manual_D1.sh
-bash ./exploit/D3/run_hammer_manual_D3.sh
-
-rm exploit_control.txt memory_control.txt model_control.txt
-
-cd exploit
-output_file="degredation_table.csv"
+output_file="$HAMMER_ROOT/results/fig12_t4/t4.csv"
 
 echo "Bitflip,Model,Top1,Top5,RAD" > "$output_file"
 
 # Iterate over each folder
+cd $HAMMER_ROOT/results/fig12_t4/
 for folder in D1 D3 B1 B2; do
     # Iterate over each file in the folder
     for file in "$folder"/*.txt; do
@@ -21,5 +14,3 @@ for folder in D1 D3 B1 B2; do
         echo "$folder,$(basename "$file" .txt),$max_row" >> "$output_file"
     done
 done
-
-echo "Results saved in $output_file"

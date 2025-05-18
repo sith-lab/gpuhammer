@@ -234,7 +234,7 @@ if __name__ == "__main__":
             i = i + 1
             restore_original_value(param, param_id, original)
 
-    imagenet_data = torchvision.datasets.ImageNet(args.val_path, split="val", transform=val_transforms)
+    imagenet_data = torchvision.datasets.ImageFolder(args.val_path + "/val", transform=val_transforms)
     data_loader = torch.utils.data.DataLoader(imagenet_data,
                                             batch_size=4,
                                             shuffle=True)
