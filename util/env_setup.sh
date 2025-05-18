@@ -20,3 +20,7 @@ if [ ! -d "rmm_lib" ]; then
     make -j
     make install
 fi
+
+python3 -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+python3 -m pip install matplotlib
+python3 -m pip install scipy
