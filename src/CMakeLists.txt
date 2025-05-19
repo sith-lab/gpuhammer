@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.26 FATAL_ERROR)
-project(GPURowhammer LANGUAGES CXX CUDA)
-
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CUDA_STANDARD 17)
 
 set(CMAKE_CUDA_ARCHITECTURES 86)
+
+project(GPURowhammer LANGUAGES CXX CUDA)
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --generate-line-info -O3 -Xcicc -O0 -Xptxas -O3 -gencode=arch=compute_86,code=sm_86")
 
 find_package(nvtx3 REQUIRED PATHS "./rmm_lib/lib/cmake/nvtx3" NO_DEFAULT_PATH)
@@ -73,6 +73,10 @@ target_link_libraries(st_sync_delay PRIVATE Threads::Threads)
 add_executable(gpu_hammer ./hammer/gpu_hammer.cu)
 target_link_libraries(gpu_hammer PUBLIC rbce_lib hammer_lib)
 target_link_libraries(gpu_hammer PRIVATE Threads::Threads)
+
+add_executable(trr_sampler ./hammer/trr_sampler_size.cu)
+target_link_libraries(trr_sampler PUBLIC rbce_lib hammer_lib)
+target_link_libraries(trr_sampler PRIVATE Threads::Threads)
 
 add_executable(hammer_manual_agg_left ./exploit/hammer_manual_agg_left.cu)
 target_link_libraries(hammer_manual_agg_left PUBLIC rbce_lib hammer_lib)
