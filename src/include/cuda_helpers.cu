@@ -153,38 +153,7 @@ __global__ void clear_address_kernel(uint8_t *addr, uint64_t step)
                  "}" ::"l"(addr));
 }
 
-
-__global__ void verify_result_kernel(uint8_t *addr_arr, uint64_t target,
-                                    uint64_t b_len, bool *has_diff)
-{
-  uint64_t value = 0;
-
-  int offset = threadIdx.x + blockIdx.x * blockDim.x;
-  if (offset < b_len)
-  {
-    asm volatile("{\n\t"
-                 "ld.u8.global.volatile %0, [%1];\n\t"
-                 "}"
-                 : "=l"(value)
-                 : "l"(addr_arr + offset));
-  }
-  else
-    return;
-
-  int diff_count = 0;
-  int diff = target ^ value; // XOR
-  for (int i = 0; i < 8; i++)
-    diff_count += (diff >> i) & 1;
-
-  if (diff_count)
-  {
-    if (has_diff) *has_diff = true;
-    printf("Bit-Flip Location: %d bit at %p\n", diff_count, addr_arr + offset);
-    printf("Expected Pattern: %02lx, Observed Pattern: %02lx\n", target, value);
-  }
-}
-
-__global__ void better_verify_result_kernel(uint8_t **addr_arr, uint64_t target,
+__global__ void verify_result_kernel(uint8_t **addr_arr, uint64_t target,
   uint64_t b_len, bool *has_diff)
 {
   uint64_t value;
@@ -350,7 +319,10 @@ __global__ void sync_hammer_kernel(uint8_t **addr_arr, uint64_t count,
   *time = ce - cs;
 }
 
-__global__ void warp_simple_hammer_kernel(uint8_t **addr_arr, uint64_t count, uint64_t n, uint64_t k, uint64_t len, uint64_t delay, uint64_t period, uint64_t* time)
+__global__ void warp_simple_hammer_kernel(uint8_t **addr_arr, uint64_t count, 
+                                          uint64_t n, uint64_t k, uint64_t len, 
+                                          uint64_t delay, uint64_t period, 
+                                          uint64_t* time)
 {
   /* n: warp, k: threads */
   uint64_t ret = 0, temp, cs, ce;
@@ -394,3 +366,74 @@ __global__ void warp_simple_hammer_kernel(uint8_t **addr_arr, uint64_t count, ui
   }
 }
 
+__global__ void rh_threshold_kernel(uint8_t **agg_arr, uint8_t **dum_arr, 
+                                    uint64_t count, uint64_t n, uint64_t k, 
+                                    uint64_t len, uint64_t delay, uint64_t period,
+                                    uint64_t* time, 
+                                    uint64_t agg_period, uint64_t dum_period)
+{
+  /* n: warp, k: threads */
+  uint64_t ret = 0, temp, cs, ce;
+  uint64_t warpId = threadIdx.x / 32;
+  uint64_t threadId_in_warp = threadIdx.x % 32;
+
+  if (warpId < n && threadId_in_warp < k && threadId_in_warp + warpId * k < len)
+  {
+    uint8_t *agg = *(agg_arr + threadId_in_warp + warpId * k);
+    uint8_t *dum = *(dum_arr  + threadId_in_warp + warpId * k);
+
+    asm volatile("{\n\t"
+               "discard.global.L2 [%0], 128;\n\t"
+               "}" ::"l"(agg));
+    asm volatile("{\n\t"
+               "discard.global.L2 [%0], 128;\n\t"
+               "}" ::"l"(dum));
+
+    if (threadIdx.x == 0)
+      cs = clock64();
+    __syncthreads();
+
+    for (;count--;)
+    {
+      // Access agg
+      for (uint64_t j = agg_period; j--;){
+        for (uint64_t i = period; i--;){
+          asm volatile("{\n\t"
+                      "discard.global.L2 [%1], 128;\n\t"
+                      "ld.u8.global.volatile %0, [%1];\n\t"
+                      "}"
+                      : "=l"(temp)
+                      : "l"(agg));
+          __threadfence_block();
+        }
+        for (uint64_t i = delay; i--;){
+          ret += temp;
+        }
+      }
+      // Access dummy
+      for (uint64_t j = dum_period; j--;){
+        for (uint64_t i = period; i--;){
+          asm volatile("{\n\t"
+                      "discard.global.L2 [%1], 128;\n\t"
+                      "ld.u8.global.volatile %0, [%1];\n\t"
+                      "}"
+                      : "=l"(temp)
+                      : "l"(dum));
+          __threadfence_block();
+        }
+        for (uint64_t i = delay; i--;){
+          ret += temp;
+        }
+      }
+    }
+
+    __syncthreads();
+    if (threadIdx.x == 0)
+      ce = clock64();
+    __syncthreads();
+    if (threadIdx.x == 0){
+      printf("%u, %ld, %ld, %ld\n", threadIdx.x, warpId, temp, ret);
+             * time = ce - cs;
+    }
+  }
+}

@@ -78,6 +78,10 @@ add_executable(trr_sampler ./hammer/trr_sampler_size.cu)
 target_link_libraries(trr_sampler PUBLIC rbce_lib hammer_lib)
 target_link_libraries(trr_sampler PRIVATE Threads::Threads)
 
+add_executable(trh ./hammer/trh.cu)
+target_link_libraries(trh PUBLIC rbce_lib hammer_lib)
+target_link_libraries(trh PRIVATE Threads::Threads)
+
 add_executable(hammer_manual_agg_left ./exploit/hammer_manual_agg_left.cu)
 target_link_libraries(hammer_manual_agg_left PUBLIC rbce_lib hammer_lib)
 target_link_libraries(hammer_manual_agg_left PRIVATE Threads::Threads CUDA::cuda_driver)
